@@ -1,93 +1,180 @@
-# SSH Remote Resolver Extension
+# SSH Extension with Code-Server Integration
 
-This extension provides SSH remote connectivity for VS Code, allowing you to connect to remote machines running code-server.
+A custom VS Code extension that connects to remote servers via SSH and integrates with code-server for remote development.
 
-## Installation
+## 🚀 Features
 
-1. **Build the extension:**
+- **SSH Connection**: Establishes secure SSH connections to remote servers
+- **Code-Server Detection**: Automatically detects if code-server is running on the remote server
+- **Code-Server Management**: Can start code-server if it's not running
+- **Multiple Authentication**: Supports SSH key and password authentication
+- **Progress Tracking**: Shows detailed progress during connection
+- **Communication Logging**: Captures and logs communication between VS Code and code-server
+
+## 📋 What It Does
+
+This extension works as a bridge between VS Code and code-server:
+
+1. **Connects to remote server** via SSH
+2. **Checks if code-server is running** on the specified port
+3. **Starts code-server if needed** using the correct path
+4. **Opens code-server** in VS Code or browser
+5. **Shows communication** between VS Code and code-server when files are switched
+
+## 🛠️ Installation
+
+1. **Clone the repository**:
    ```bash
-   cd ssh-resolver-extension
+   git clone https://github.com/AdvikarA/arch1.git
+   cd arch1
+   ```
+
+2. **Install dependencies**:
+   ```bash
    npm install
+   ```
+
+3. **Compile the extension**:
+   ```bash
    npm run compile
    ```
 
-2. **Install the extension:**
-   - Copy the extension folder to your VS Code extensions directory
-   - Or use the VSIX installer
-
-## Usage
-
-### Method 1: Command Palette
-1. Open VS Code
-2. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS)
-3. Run "Connect via SSH"
-4. Enter the connection details
-
-### Method 2: Direct URI
-Use the following URI format:
-```
-vscode-remote://ssh-remote+user@host:sshPort,codeServerPort/path/to/workspace
-```
-
-### Examples:
-
-1. **Connect to localhost:**
-   ```
-   vscode-remote://ssh-remote+localhost:22,8080/home/user/project
+4. **Open in VS Code**:
+   ```bash
+   code .
    ```
 
-2. **Connect to remote server:**
+5. **Press F5** to launch Extension Development Host
+
+## 🧪 Testing
+
+### Local Testing
+
+1. **Start the test environment**:
+   ```bash
+   node test-local-ssh.js
    ```
-   vscode-remote://ssh-remote+user@remote-server.com:22,8080/home/user/project
-   ```
 
-3. **Custom SSH port:**
-   ```
-   vscode-remote://ssh-remote+user@server.com:2222,9000/home/user/project
-   ```
+2. **Run the extension**:
+   - Press F5 in VS Code
+   - Open Command Palette (Cmd+Shift+P)
+   - Run "Connect via SSH"
+   - Enter: `localhost`, `advikar`, `22`, `8080`
 
-## Prerequisites
+### Debug Communication
 
-1. **SSH access** to the remote machine
-2. **code-server installed** on the remote machine
-3. **SSH key authentication** (recommended) or password authentication
-
-## How it works
-
-1. The extension establishes an SSH connection to the remote machine
-2. It starts code-server on the remote machine via SSH
-3. It sets up port forwarding to access code-server locally
-4. VS Code connects to the local forwarded port
-
-## Configuration
-
-The extension supports the following connection parameters:
-- `host`: Remote machine hostname or IP
-- `user`: SSH username (optional)
-- `sshPort`: SSH port (default: 22)
-- `codeServerPort`: code-server port (default: 8080)
-
-## Troubleshooting
-
-1. **SSH connection fails:**
-   - Verify SSH access to the remote machine
-   - Check SSH key permissions
-   - Ensure the remote machine is accessible
-
-2. **code-server not found:**
-   - Install code-server on the remote machine
-   - Ensure code-server is in the PATH
-
-3. **Port forwarding issues:**
-   - Check if the code-server port is available
-   - Verify firewall settings
-
-## Development
-
-To develop this extension:
+To see the communication between VS Code and code-server:
 
 ```bash
-cd ssh-resolver-extension
-npm install
-npm run watch  # For development with auto-recompile
-``` 
+node debug-code-server.js
+```
+
+Then switch files in VS Code and watch the terminal output.
+
+## 🔧 Configuration
+
+### SSH Keys Setup
+
+The extension automatically uses SSH keys if available. To set up SSH keys:
+
+```bash
+node setup-ssh-keys.js
+```
+
+### Code-Server Path
+
+The extension is configured to use code-server at `/opt/homebrew/bin/code-server`. Update the path in `src/ssh-manager.ts` if needed.
+
+## 📁 Project Structure
+
+```
+ssh-extension/
+├── src/
+│   ├── extension.ts          # Main extension logic
+│   └── ssh-manager.ts        # SSH connection manager
+├── out/                      # Compiled JavaScript
+├── .vscode/                  # VS Code configuration
+├── test-*.js                 # Test scripts
+├── setup-*.js                # Setup scripts
+└── package.json              # Dependencies and scripts
+```
+
+## 🔍 Communication Flow
+
+When you switch files in VS Code:
+
+1. **VS Code** sends file request via SSH
+2. **Code-server** receives request and reads file from remote filesystem
+3. **Code-server** sends file content back to VS Code
+4. **VS Code** displays the file content
+
+## 🎯 Key Features
+
+- ✅ **Real SSH connections** using ssh2 library
+- ✅ **Code-server integration** with automatic detection
+- ✅ **Progress notifications** during connection
+- ✅ **Multiple authentication methods** (SSH keys, password)
+- ✅ **Communication logging** for debugging
+- ✅ **Error handling** with detailed messages
+
+## 🚀 Usage
+
+1. **Open VS Code** and press F5
+2. **Run "Connect via SSH"** command
+3. **Enter connection details**:
+   - Host: Your remote server
+   - User: SSH username
+   - SSH Port: Usually 22
+   - Code-server Port: Usually 8080
+4. **Choose connection method**:
+   - Open Code-Server in VS Code
+   - Open in Browser
+   - Copy Connection Details
+
+## 🔧 Development
+
+### Compile Changes
+
+```bash
+npm run compile
+```
+
+### Watch Mode
+
+```bash
+npm run watch
+```
+
+### Test the Extension
+
+```bash
+node test-enhanced-extension.js
+```
+
+## 📊 Communication Examples
+
+When you switch files, you'll see communication like:
+
+```
+📁 VS CODE FILE OPERATION: textDocument/didOpen
+🌐 JSON-RPC MESSAGE: {"method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///path/to/file.js"}}}
+🔗 SSH/REMOTE COMMUNICATION: File read request via SSH
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
+
+## 🔗 Links
+
+- [GitHub Repository](https://github.com/AdvikarA/arch1)
+- [VS Code Extension API](https://code.visualstudio.com/api)
+- [Code-Server Documentation](https://coder.com/docs/code-server/latest) 
