@@ -1,0 +1,8 @@
+version: "2"
+tunnels:
+  code-server:
+    proto: http
+    addr: 8082
+  ssh:
+    proto: tcp
+    addr: 22 

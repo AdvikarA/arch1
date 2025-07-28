@@ -1,0 +1,41 @@
+{
+  "name": "code-server-resolver",
+  "displayName": "Code Server Remote Resolver",
+  "description": "Remote resolver that uses code-server as the remote server",
+  "version": "0.0.1",
+  "publisher": "vscode",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "main": "./out/extension.js",
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "enabledApiProposals": [
+    "resolvers"
+  ],
+  "activationEvents": [
+    "onResolveRemoteAuthority:code-server"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "category": "Remote",
+        "command": "code-server-resolver.connect",
+        "title": "Connect to Code Server"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.103.0",
+    "@types/node": "^22.0.0"
+  }
+} 

@@ -1,0 +1,39 @@
+{
+  "name": "ssh-resolver",
+  "displayName": "SSH Remote Resolver",
+  "description": "Remote resolver for SSH connections to code-server instances",
+  "version": "0.0.1",
+  "publisher": "vscode",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "main": "./out/extension.js",
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "enabledApiProposals": [],
+  "activationEvents": [
+    "onCommand:ssh-resolver.connect"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "category": "Remote",
+        "command": "ssh-resolver.connect",
+        "title": "Connect via SSH"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.82.0",
+    "@types/node": "^22.0.0"
+  }
+} 

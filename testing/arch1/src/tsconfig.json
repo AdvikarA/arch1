@@ -1,0 +1,43 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"esModuleInterop": true,
+		"removeComments": false,
+		"preserveConstEnums": true,
+		"sourceMap": false,
+		"allowJs": true,
+		"resolveJsonModule": true,
+		"isolatedModules": false,
+		"outDir": "../out/vs",
+			"types": [
+		"@webgpu/types",
+		"mocha",
+		"semver",
+		"sinon",
+		"trusted-types",
+		"winreg",
+		"wicg-file-system-access"
+	],
+	"skipLibCheck": true,
+		"plugins": [
+			{
+				"name": "tsec",
+				"exemptionConfig": "./tsec.exemptions.json"
+			}
+		]
+	},
+	"include": [
+		"./*.ts",
+		"./typings",
+		"./vs/**/*.ts",
+		"./vscode-dts/vscode.d.ts"
+	],
+	"exclude": [
+		"vs/workbench/contrib/webview/browser/pre/service-worker.js",
+		"../../../code-server/**/*"
+	],
+	"exclude": [
+		"vs/workbench/contrib/webview/browser/pre/service-worker.js",
+		"../../../code-server/**/*"
+	]
+}
