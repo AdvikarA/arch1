@@ -16,8 +16,7 @@
 		"vscode": "^1.70.2"
 	},
 	"extensionKind": [
-		"ui",
-		"workspace"
+		"ui"
 	],
 	"enabledApiProposals": [
 		"resolvers",
@@ -30,12 +29,11 @@
 	],
 	"api": "none",
 	"activationEvents": [
-		"onStartupFinished",
 		"onCommand:openremotessh.openEmptyWindow",
 		"onCommand:openremotessh.openEmptyWindowInCurrentWindow",
 		"onCommand:openremotessh.openConfigFile",
 		"onCommand:openremotessh.showLog",
-		"onResolveRemoteAuthority:ssh-remote",
+		"onResolveRemoteAuthority:open-ssh-remote",
 		"onView:sshHosts"
 	],
 	"main": "./out/extension.js",
@@ -114,7 +112,7 @@
 					"id": "sshHosts",
 					"name": "SSH Targets",
 					"group": "targets@1",
-					"remoteName": "ssh-remote"
+					"remoteName": "open-ssh-remote"
 				}
 			]
 		},
@@ -181,7 +179,7 @@
 		"resourceLabelFormatters": [
 			{
 				"scheme": "vscode-remote",
-				"authority": "ssh-remote+*",
+				"authority": "open-ssh-remote+*",
 				"formatting": {
 					"label": "${path}",
 					"separator": "/",
@@ -194,22 +192,22 @@
 			"statusBar/remoteIndicator": [
 				{
 					"command": "openremotessh.openEmptyWindow",
-					"when": "remoteName =~ /^ssh-remote$/ && remoteConnectionState == connected",
+					"when": "remoteName =~ /^open-ssh-remote$/ && remoteConnectionState == connected",
 					"group": "remote_20_ssh_1general@1"
 				},
 				{
 					"command": "openremotessh.openEmptyWindowInCurrentWindow",
-					"when": "remoteName =~ /^ssh-remote$/ && remoteConnectionState == connected",
+					"when": "remoteName =~ /^open-ssh-remote$/ && remoteConnectionState == connected",
 					"group": "remote_20_ssh_1general@2"
 				},
 				{
 					"command": "openremotessh.openConfigFile",
-					"when": "remoteName =~ /^ssh-remote$/ && remoteConnectionState == connected",
+					"when": "remoteName =~ /^open-ssh-remote$/ && remoteConnectionState == connected",
 					"group": "remote_20_ssh_1general@3"
 				},
 				{
 					"command": "openremotessh.showLog",
-					"when": "remoteName =~ /^ssh-remote$/ && remoteConnectionState == connected",
+					"when": "remoteName =~ /^open-ssh-remote$/ && remoteConnectionState == connected",
 					"group": "remote_20_ssh_1general@4"
 				},
 				{

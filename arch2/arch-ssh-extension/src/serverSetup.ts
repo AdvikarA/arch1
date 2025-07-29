@@ -35,7 +35,8 @@ export class ServerInstallError extends Error {
     }
 }
 
-const DEFAULT_DOWNLOAD_URL_TEMPLATE = 'https://update.code.visualstudio.com/commit:${commit}/server-${os}-${arch}/${quality}';
+const DEFAULT_DOWNLOAD_URL_TEMPLATE = 'https://github.com/VSCodium/vscodium/releases/download/${version}.${release}/vscodium-reh-${os}-${arch}-${version}.${release}.tar.gz';
+const VSCODE_DOWNLOAD_URL_TEMPLATE = 'https://update.code.visualstudio.com/commit:${commit}/server-${os}-${arch}/${quality}';
 
 export async function installCodeServer(conn: SSHConnection, serverDownloadUrlTemplate: string | undefined, extensionIds: string[], envVariables: string[], platform: string | undefined, useSocketPath: boolean, logger: Log): Promise<ServerInstallResult> {
     let shell = 'powershell';
@@ -70,6 +71,15 @@ export async function installCodeServer(conn: SSHConnection, serverDownloadUrlTe
     const scriptId = crypto.randomBytes(12).toString('hex');
 
     const vscodeServerConfig = await getVSCodeServerConfig();
+    
+    // Determine the appropriate download URL template
+    let downloadUrlTemplate = serverDownloadUrlTemplate || vscodeServerConfig.serverDownloadUrlTemplate;
+    if (!downloadUrlTemplate) {
+        // If no release is specified (VS Code), use the VS Code download URL
+        // If release is specified (VSCodium), use the VSCodium download URL
+        downloadUrlTemplate = vscodeServerConfig.release ? DEFAULT_DOWNLOAD_URL_TEMPLATE : VSCODE_DOWNLOAD_URL_TEMPLATE;
+    }
+    
     const installOptions: ServerInstallOptions = {
         id: scriptId,
         version: vscodeServerConfig.version,
@@ -81,7 +91,7 @@ export async function installCodeServer(conn: SSHConnection, serverDownloadUrlTe
         useSocketPath,
         serverApplicationName: vscodeServerConfig.serverApplicationName,
         serverDataFolderName: vscodeServerConfig.serverDataFolderName,
-        serverDownloadUrlTemplate: serverDownloadUrlTemplate || vscodeServerConfig.serverDownloadUrlTemplate || DEFAULT_DOWNLOAD_URL_TEMPLATE,
+        serverDownloadUrlTemplate: downloadUrlTemplate,
     };
 
     let commandOutput: { stdout: string; stderr: string };
@@ -200,11 +210,6 @@ function parseServerInstallOutput(str: string, scriptId: string): { [k: string]:
 
 function generateBashInstallScript({ id, quality, version, commit, release, extensionIds, envVariables, useSocketPath, serverApplicationName, serverDataFolderName, serverDownloadUrlTemplate }: ServerInstallOptions) {
     const extensions = extensionIds.map(id => '--install-extension ' + id).join(' ');
-    
-    // For regular VS Code, there's no release number, so we adjust the URL template
-    const hasRelease = release && release.trim() !== '';
-    const adjustedTemplate = hasRelease ? serverDownloadUrlTemplate : serverDownloadUrlTemplate?.replace('${version}.${release}', '${version}').replace('.${release}', '');
-    
     return `
 # Server installation script
 
@@ -213,7 +218,7 @@ TMP_DIR="\${XDG_RUNTIME_DIR:-"/tmp"}"
 DISTRO_VERSION="${version}"
 DISTRO_COMMIT="${commit}"
 DISTRO_QUALITY="${quality}"
-DISTRO_VSCODIUM_RELEASE="${hasRelease ? release : ''}"
+DISTRO_VSCODIUM_RELEASE="${release ?? ''}"
 
 SERVER_APP_NAME="${serverApplicationName}"
 SERVER_INITIAL_EXTENSIONS="${extensions}"
@@ -323,7 +328,7 @@ if [[ $OS_RELEASE_ID = alpine ]]; then
     PLATFORM=$OS_RELEASE_ID
 fi
 
-SERVER_DOWNLOAD_URL="$(echo "${adjustedTemplate.replace(/\$\{/g, '\\${')}" | sed "s/\\\${quality}/$DISTRO_QUALITY/g" | sed "s/\\\${version}/$DISTRO_VERSION/g" | sed "s/\\\${commit}/$DISTRO_COMMIT/g" | sed "s/\\\${os}/$PLATFORM/g" | sed "s/\\\${arch}/$SERVER_ARCH/g" | sed "s/\\\${release}/$DISTRO_VSCODIUM_RELEASE/g")"
+SERVER_DOWNLOAD_URL="$(echo "${serverDownloadUrlTemplate.replace(/\$\{/g, '\\${')}" | sed "s/\\\${quality}/$DISTRO_QUALITY/g" | sed "s/\\\${version}/$DISTRO_VERSION/g" | sed "s/\\\${commit}/$DISTRO_COMMIT/g" | sed "s/\\\${os}/$PLATFORM/g" | sed "s/\\\${arch}/$SERVER_ARCH/g" | sed "s/\\\${release}/$DISTRO_VSCODIUM_RELEASE/g")"
 
 # Check if server script is already installed
 if [[ ! -f $SERVER_SCRIPT ]]; then
