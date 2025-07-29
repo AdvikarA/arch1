@@ -15,6 +15,11 @@ export async function promptOpenRemoteSSHWindow(reuseWindow: boolean) {
     }
 
     const sshDest = new SSHDestination(host);
+    
+    // Ensure extension is fully loaded and authority resolver is registered
+    // This gives the extension time to register its resolver
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     openRemoteSSHWindow(sshDest.toEncodedString(), reuseWindow);
 }
 

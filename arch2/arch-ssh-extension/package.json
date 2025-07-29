@@ -16,7 +16,8 @@
 		"vscode": "^1.70.2"
 	},
 	"extensionKind": [
-		"ui"
+		"ui",
+		"workspace"
 	],
 	"enabledApiProposals": [
 		"resolvers",
@@ -29,6 +30,7 @@
 	],
 	"api": "none",
 	"activationEvents": [
+		"onStartupFinished",
 		"onCommand:openremotessh.openEmptyWindow",
 		"onCommand:openremotessh.openEmptyWindowInCurrentWindow",
 		"onCommand:openremotessh.openConfigFile",
