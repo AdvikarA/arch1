@@ -103,6 +103,44 @@
 					"description": "**Experimental:** The name of the server binary, use this **only if** you are using a client without a corresponding server release",
 					"scope": "application",
 					"default": ""
+				},
+				"remote.SSH.logLevel": {
+					"type": "string",
+					"description": "Set the logging level for SSH extension debugging. Higher levels include all lower levels.",
+					"default": "Info",
+					"scope": "application",
+					"enum": [
+						"Trace",
+						"Debug", 
+						"Info",
+						"Warning",
+						"Error"
+					],
+					"enumDescriptions": [
+						"Most verbose - includes all debugging information",
+						"Debug information including file operations and network traffic",
+						"General information and important events",
+						"Warnings and non-critical issues",
+						"Errors and critical issues only"
+					]
+				},
+				"remote.SSH.logFileOperations": {
+					"type": "boolean",
+					"description": "Enable detailed logging of file operations (read, write, watch, etc.) between local VS Code and remote server.",
+					"default": false,
+					"scope": "application"
+				},
+				"remote.SSH.logNetworkTraffic": {
+					"type": "boolean",
+					"description": "Enable detailed logging of network requests and responses flowing through the SSH tunnel.",
+					"default": false,
+					"scope": "application"
+				},
+				"remote.SSH.logTunnelActivity": {
+					"type": "boolean",
+					"description": "Enable detailed logging of SSH tunnel creation, destruction, and data transfer activities.",
+					"default": false,
+					"scope": "application"
 				}
 			}
 		},
@@ -135,6 +173,16 @@
 			{
 				"command": "openremotessh.showLog",
 				"title": "Show Log",
+				"category": "Remote-SSH"
+			},
+			{
+				"command": "openremotessh.testEnhancedLogging",
+				"title": "Test Enhanced Logging",
+				"category": "Remote-SSH"
+			},
+			{
+				"command": "openremotessh.directConnectionTest",
+				"title": "Direct Connection Test",
 				"category": "Remote-SSH"
 			},
 			{

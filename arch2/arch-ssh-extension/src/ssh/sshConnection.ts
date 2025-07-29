@@ -7,6 +7,7 @@ import * as stream from 'stream';
 import { Client, ClientChannel, ClientErrorExtensions, ExecOptions, ShellOptions, ConnectConfig } from 'ssh2';
 import { Server } from 'net';
 import { SocksConnectionInfo, createServer as createSocksServer } from 'simple-socks';
+import Log from '../common/logger';
 
 export interface SSHConnectConfig extends ConnectConfig {
     /** Optional Unique ID attached to ssh connection. */
@@ -64,10 +65,12 @@ export default class SSHConnection extends EventEmitter {
     private __retries: number = 0;
     private __err: Error & ClientErrorExtensions & { code?: string } | null = null;
     private sshConnection: Client | null = null;
+    private logger?: Log;
 
-    constructor(options: SSHConnectConfig) {
+    constructor(config?: SSHConnectConfig, logger?: Log) {
         super();
-        this.config = Object.assign({}, defaultOptions, options);
+        this.config = Object.assign({}, defaultOptions, config);
+        this.logger = logger;
         this.config.uniqueId = this.config.uniqueId || `${this.config.username}@${this.config.host}`;
     }
 
@@ -299,8 +302,8 @@ export default class SSHConnection extends EventEmitter {
                                             this.emit(SSHConstants.CHANNEL.TUNNEL, SSHConstants.STATUS.DISCONNECT, { SSHTunnelConfig: SSHTunnelConfig, err: err });
                                             return;
                                         }
-                                        stream.pipe(socket);
-                                        socket.pipe(stream);
+                                        this.createLoggedPipe(socket, stream, 'LOCAL→REMOTE');
+                                        this.createLoggedPipe(stream, socket, 'REMOTE→LOCAL');
                                     });
                                 } else {
                                     this.sshConnection!.openssh_forwardOutStreamLocal(SSHTunnelConfig.remoteSocketPath!, (err, stream) => {
@@ -308,8 +311,8 @@ export default class SSHConnection extends EventEmitter {
                                             this.emit(SSHConstants.CHANNEL.TUNNEL, SSHConstants.STATUS.DISCONNECT, { SSHTunnelConfig: SSHTunnelConfig, err: err });
                                             return;
                                         }
-                                        stream.pipe(socket);
-                                        socket.pipe(stream);
+                                        this.createLoggedPipe(socket, stream, 'LOCAL→REMOTE');
+                                        this.createLoggedPipe(stream, socket, 'REMOTE→LOCAL');
                                     });
                                 }
                             });
@@ -360,5 +363,30 @@ export default class SSHConnection extends EventEmitter {
         }
 
         return Promise.resolve();
+    }
+
+    private createLoggedPipe(source: stream.Duplex, dest: stream.Duplex, direction: 'LOCAL→REMOTE' | 'REMOTE→LOCAL'): void {
+        if (this.logger) {
+            // Log the pipe creation
+            this.logger.logNetworkRequest({
+                direction,
+                messageType: 'TUNNEL_PIPE_CREATED',
+                timestamp: Date.now()
+            });
+            
+            // Monitor data flow
+            source.on('data', (chunk: Buffer) => {
+                if (this.logger) {
+                    this.logger.logNetworkRequest({
+                        direction,
+                        messageType: 'DATA_TRANSFER',
+                        size: chunk.length,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+        }
+        
+        source.pipe(dest);
     }
 }

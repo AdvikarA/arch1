@@ -67,14 +67,25 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
     }
 
     resolve(authority: string, context: vscode.RemoteAuthorityResolverContext): Thenable<vscode.ResolverResult> {
+        // Debug: Log every resolve attempt
+        this.logger.debug(`🔍 RESOLVE METHOD CALLED: authority="${authority}", attempt=${context.resolveAttempt}`);
+        
         const [type, dest] = authority.split('+');
         if (type !== REMOTE_SSH_AUTHORITY) {
+            this.logger.error(`❌ Invalid authority type: ${type} (expected: ${REMOTE_SSH_AUTHORITY})`);
             throw new Error(`Invalid authority type for SSH resolver: ${type}`);
         }
 
         this.logger.info(`Resolving ssh remote authority '${authority}' (attemp #${context.resolveAttempt})`);
 
         const sshDest = SSHDestination.parseEncoded(dest);
+
+        // Enhanced logging: Connection attempt
+        this.logger.logConnectionState('CONNECTING', sshDest.hostname, {
+            attempt: context.resolveAttempt,
+            user: sshDest.user,
+            port: sshDest.port
+        });
 
         // It looks like default values are not loaded yet when resolving a remote,
         // so let's hardcode the default values here
@@ -143,7 +154,7 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
                             agentForward: proxyAgentForward,
                             agent: proxyAgent,
                             authHandler: (arg0, arg1, arg2) => (proxyAuthHandler(arg0, arg1, arg2), undefined)
-                        });
+                        }, this.logger);
                         this.proxyConnections.push(proxyConnection);
 
                         const nextProxyJump = i < proxyJumps.length - 1 ? proxyJumps[i + 1] : undefined;
@@ -173,6 +184,15 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
                 // Create final shh connection
                 const sshAuthHandler = this.getSSHAuthHandler(sshUser, sshHostName, identityKeys, preferredAuthentications);
 
+                // Enhanced logging: Connection attempt details
+                this.logger.debug(`Creating SSH connection to ${sshHostName}:${sshPort}`, {
+                    user: sshUser,
+                    authMethods: preferredAuthentications,
+                    agentForward,
+                    useProxy: !!proxyStream,
+                    timeout: connectTimeout
+                });
+
                 this.sshConnection = new SSHConnection({
                     host: !proxyStream ? sshHostName : undefined,
                     port: !proxyStream ? sshPort : undefined,
@@ -183,15 +203,40 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
                     agentForward,
                     agent,
                     authHandler: (arg0, arg1, arg2) => (sshAuthHandler(arg0, arg1, arg2), undefined),
-                });
+                }, this.logger);
+
+                const connectionTimer = this.logger.startTimer(`SSH connection to ${sshHostName}`);
                 await this.sshConnection.connect();
+                connectionTimer();
+
+                // Enhanced logging: Connection successful
+                this.logger.logConnectionState('CONNECTED', sshHostName, {
+                    user: sshUser,
+                    port: sshPort,
+                    agentForwarding: agentForward
+                });
 
                 const envVariables: Record<string, string | null> = {};
                 if (agentForward) {
                     envVariables['SSH_AUTH_SOCK'] = null;
                 }
 
+                // Enhanced logging: Server installation start
+                this.logger.logServerInstallation('STARTING', 0, {
+                    host: sshHostName,
+                    platform: remotePlatformMap[sshDest.hostname] || 'auto-detect',
+                    useSocket: remoteServerListenOnSocket,
+                    extensions: defaultExtensions.length
+                });
+
                 const installResult = await installCodeServer(this.sshConnection, serverDownloadUrlTemplate, defaultExtensions, Object.keys(envVariables), remotePlatformMap[sshDest.hostname], remoteServerListenOnSocket, this.logger);
+
+                // Enhanced logging: Server installation complete
+                this.logger.logServerInstallation('COMPLETE', 100, {
+                    listeningOn: installResult.listeningOn,
+                    platform: installResult.platform,
+                    arch: installResult.arch
+                });
 
                 for (const key of Object.keys(envVariables)) {
                     if (installResult[key] !== undefined) {
@@ -209,14 +254,34 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
 
                 if (enableDynamicForwarding) {
                     const socksPort = await findRandomPort();
+
+                    // Enhanced logging: SOCKS tunnel creation
+                    const socksTimer = this.logger.startTimer(`SOCKS tunnel creation`);
                     this.socksTunnel = await this.sshConnection!.addTunnel({
                         name: `ssh_tunnel_socks_${socksPort}`,
                         localPort: socksPort,
                         socks: true
                     });
+                    socksTimer();
+
+                    this.logger.logTunnelActivity({
+                        localPort: socksPort,
+                        remoteEndpoint: 'SOCKS_PROXY',
+                        action: 'CREATE'
+                    });
                 }
 
+                // Enhanced logging: Main tunnel creation
+                const tunnelTimer = this.logger.startTimer(`Main tunnel creation`);
                 const tunnelConfig = await this.openTunnel(0, installResult.listeningOn);
+                tunnelTimer();
+
+                this.logger.logTunnelActivity({
+                    localPort: tunnelConfig.localPort,
+                    remoteEndpoint: installResult.listeningOn.toString(),
+                    action: 'CREATE'
+                });
+
                 this.tunnels.push(tunnelConfig);
 
                 // Enable ports view
@@ -239,6 +304,12 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
                 return resolvedResult;
             } catch (e: unknown) {
                 this.logger.error(`Error resolving authority`, e);
+
+                // Enhanced logging: Connection failed
+                this.logger.logConnectionState('ERROR', sshDest.hostname, {
+                    attempt: context.resolveAttempt,
+                    error: e instanceof Error ? e.message : String(e)
+                });
 
                 // Initial connection
                 if (context.resolveAttempt === 1) {
@@ -340,6 +411,14 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
                 const identityKey = identityKeys.shift()!;
 
                 this.logger.info(`Trying publickey authentication: ${identityKey.filename} ${identityKey.parsedKey.type} SHA256:${identityKey.fingerprint}`);
+
+                // Enhanced logging: Authentication attempt
+                this.logger.logAuthenticationAttempt('publickey', true, {
+                    keyFile: identityKey.filename,
+                    keyType: identityKey.parsedKey.type,
+                    fingerprint: `SHA256:${identityKey.fingerprint}`,
+                    useAgent: identityKey.agentSupport
+                });
 
                 if (identityKey.agentSupport) {
                     return callback({

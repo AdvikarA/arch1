@@ -4,22 +4,36 @@ import { getRemoteAuthority } from './authResolver';
 import { getSSHConfigPath } from './ssh/sshConfig';
 import { exists as fileExists } from './common/files';
 import SSHDestination from './ssh/sshDestination';
+import Log from './common/logger';
+
+// Create a logger for commands
+const logger = new Log('Remote - SSH Commands');
 
 export async function promptOpenRemoteSSHWindow(reuseWindow: boolean) {
+    logger.debug(`🚀 promptOpenRemoteSSHWindow called (reuseWindow: ${reuseWindow})`);
+    
     const host = await vscode.window.showInputBox({
         title: 'Enter [user@]hostname[:port]'
     });
 
     if (!host) {
+        logger.debug(`❌ No host entered, canceling connection`);
         return;
     }
 
+    logger.debug(`✅ Host entered: ${host}`);
     const sshDest = new SSHDestination(host);
-    openRemoteSSHWindow(sshDest.toEncodedString(), reuseWindow);
+    const encodedHost = sshDest.toEncodedString();
+    logger.debug(`🔗 Encoded host: ${encodedHost}`);
+    
+    openRemoteSSHWindow(encodedHost, reuseWindow);
 }
 
 export function openRemoteSSHWindow(host: string, reuseWindow: boolean) {
-    vscode.commands.executeCommand('vscode.newWindow', { remoteAuthority: getRemoteAuthority(host), reuseWindow });
+    const remoteAuthority = getRemoteAuthority(host);
+    logger.debug(`🪟 openRemoteSSHWindow called - authority: ${remoteAuthority}, reuseWindow: ${reuseWindow}`);
+    
+    vscode.commands.executeCommand('vscode.newWindow', { remoteAuthority, reuseWindow });
 }
 
 export function openRemoteSSHLocationWindow(host: string, path: string, reuseWindow: boolean) {
