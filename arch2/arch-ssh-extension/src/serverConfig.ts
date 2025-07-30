@@ -1,11 +1,24 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import Log from './common/logger';
+
+const logger = new Log('Remote - SSH ServerConfig');
 
 let vscodeProductJson: any;
 async function getVSCodeProductJson() {
     if (!vscodeProductJson) {
-        const productJsonStr = await fs.promises.readFile(path.join(vscode.env.appRoot, 'product.json'), 'utf8');
+        // Enhanced logging: VS Code product.json read
+        const productJsonPath = path.join(vscode.env.appRoot, 'product.json');
+        const startTime = Date.now();
+        const productJsonStr = await fs.promises.readFile(productJsonPath, 'utf8');
+        logger.logFileOperation({
+            operation: 'READ',
+            path: productJsonPath,
+            size: productJsonStr.length,
+            duration: Date.now() - startTime
+        });
+        
         vscodeProductJson = JSON.parse(productJsonStr);
     }
 

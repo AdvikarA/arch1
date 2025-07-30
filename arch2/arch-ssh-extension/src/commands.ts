@@ -43,7 +43,15 @@ export function openRemoteSSHLocationWindow(host: string, path: string, reuseWin
 export async function addNewHost() {
     const sshConfigPath = getSSHConfigPath();
     if (!await fileExists(sshConfigPath)) {
+        // Enhanced logging: SSH config file creation
+        const startTime = Date.now();
         await fs.promises.appendFile(sshConfigPath, '');
+        logger.logFileOperation({
+            operation: 'WRITE',
+            path: sshConfigPath,
+            size: 0, // Empty file creation
+            duration: Date.now() - startTime
+        });
     }
 
     await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(sshConfigPath), { preview: false });
@@ -72,7 +80,15 @@ export async function addNewHost() {
 export async function openSSHConfigFile() {
     const sshConfigPath = getSSHConfigPath();
     if (!await fileExists(sshConfigPath)) {
+        // Enhanced logging: SSH config file creation
+        const startTime = Date.now();
         await fs.promises.appendFile(sshConfigPath, '');
+        logger.logFileOperation({
+            operation: 'WRITE',
+            path: sshConfigPath,
+            size: 0, // Empty file creation
+            duration: Date.now() - startTime
+        });
     }
     vscode.commands.executeCommand('vscode.open', vscode.Uri.file(sshConfigPath));
 }

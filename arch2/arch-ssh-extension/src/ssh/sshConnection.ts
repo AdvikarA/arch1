@@ -285,6 +285,13 @@ export default class SSHConnection extends EventEmitter {
                                             this.emit(SSHConstants.CHANNEL.TUNNEL, SSHConstants.STATUS.DISCONNECT, { SSHTunnelConfig: SSHTunnelConfig, err: err });
                                             return callback(err);
                                         }
+                                        
+                                        // Monitor the decrypted SSH stream for important JSON-RPC events
+                                        if (this.logger) {
+                                            this.logger.info(`🔗 SSH Connection established: ${origin.address}:${origin.port} → ${destination.address}:${destination.port}`);
+                                            this.monitorDecryptedStreamForJsonRpc(stream, 'LOCAL→REMOTE');
+                                        }
+                                        
                                         return callback(null, stream);
                                     });
                             });
@@ -365,28 +372,184 @@ export default class SSHConnection extends EventEmitter {
         return Promise.resolve();
     }
 
+    private dataBuffers = new Map<string, string>();
+
     private createLoggedPipe(source: stream.Duplex, dest: stream.Duplex, direction: 'LOCAL→REMOTE' | 'REMOTE→LOCAL'): void {
         if (this.logger) {
-            // Log the pipe creation
-            this.logger.logNetworkRequest({
-                direction,
-                messageType: 'TUNNEL_PIPE_CREATED',
-                timestamp: Date.now()
-            });
+            // Initialize buffer for this direction
+            const bufferKey = direction;
+            this.dataBuffers.set(bufferKey, '');
             
-            // Monitor data flow
+            // Monitor data flow and parse only important JSON-RPC events
             source.on('data', (chunk: Buffer) => {
                 if (this.logger) {
-                    this.logger.logNetworkRequest({
-                        direction,
-                        messageType: 'DATA_TRANSFER',
-                        size: chunk.length,
-                        timestamp: Date.now()
-                    });
+                    // Parse JSON-RPC messages (only logs important events)
+                    this.parseJsonRpcFromChunk(chunk, direction);
                 }
             });
         }
         
         source.pipe(dest);
     }
+
+    private parseJsonRpcFromChunk(chunk: Buffer, direction: 'LOCAL→REMOTE' | 'REMOTE→LOCAL'): void {
+        if (!this.logger) return;
+        
+        const bufferKey = direction;
+        let buffer = this.dataBuffers.get(bufferKey) || '';
+        
+        // Add new data to buffer
+        buffer += chunk.toString('utf8');
+        
+        // Look for complete JSON-RPC messages
+        // VS Code uses Content-Length headers followed by JSON
+        const contentLengthRegex = /Content-Length: (\d+)\r?\n\r?\n/g;
+        let match;
+        
+        while ((match = contentLengthRegex.exec(buffer)) !== null) {
+            const contentLength = parseInt(match[1]);
+            const headerLength = match[0].length;
+            const messageStart = match.index + headerLength;
+            const messageEnd = messageStart + contentLength;
+            
+            if (buffer.length >= messageEnd) {
+                try {
+                    const jsonContent = buffer.substring(messageStart, messageEnd);
+                    const jsonMessage = JSON.parse(jsonContent);
+                    
+                    // Only log meaningful events (file changes, saves, etc.)
+                    if (this.isImportantJsonRpcEvent(jsonMessage)) {
+                        this.logger.logJsonRpcMessage(direction, jsonMessage);
+                    }
+                    
+                    // Remove processed message from buffer
+                    buffer = buffer.substring(messageEnd);
+                    contentLengthRegex.lastIndex = 0; // Reset regex
+                } catch (error) {
+                    // If JSON parsing fails, skip this message
+                    buffer = buffer.substring(messageEnd);
+                    contentLengthRegex.lastIndex = 0;
+                }
+            } else {
+                // Not enough data yet, wait for more
+                break;
+            }
+        }
+        
+        // Update buffer
+        this.dataBuffers.set(bufferKey, buffer);
+        
+        // Trim buffer if it gets too large (prevent memory leaks)
+        if (buffer.length > 10000) {
+            this.dataBuffers.set(bufferKey, buffer.substring(buffer.length - 5000));
+        }
+    }
+
+    private isImportantJsonRpcEvent(jsonMessage: any): boolean {
+        // Only log actual events that matter - file changes, saves, errors, etc.
+        const method = jsonMessage.method;
+        
+        if (!method) return false;
+        
+        // File system events
+        if (method.includes('textDocument/didChange')) {
+            // Only log if there are actual content changes (not empty changes)
+            const contentChanges = jsonMessage.params?.contentChanges;
+            if (contentChanges && Array.isArray(contentChanges)) {
+                return contentChanges.some((change: any) => 
+                    change.text && change.text.trim().length > 0
+                );
+            }
+            return false;
+        }
+        
+        // File switching and other important events
+        if (method.includes('textDocument/didSave') || 
+            method.includes('textDocument/didOpen') || 
+            method.includes('textDocument/didClose') ||
+            method.includes('workspace/didChangeWatchedFiles') ||
+            method.includes('workspace/didCreateFiles') ||
+            method.includes('workspace/didDeleteFiles') ||
+            method.includes('workspace/didRenameFiles')) {
+            return true;
+        }
+        
+        // Error notifications
+        if (method.includes('window/showMessage') && 
+            jsonMessage.params?.type <= 2) { // Error or Warning
+            return true;
+        }
+        
+        // Language server status changes
+        if (method.includes('$/setTraceNotification') ||
+            method.includes('telemetry/event') ||
+            method.includes('window/logMessage')) {
+            return false; // Skip these verbose events
+        }
+        
+        // Diagnostics (errors, warnings)
+        if (method.includes('textDocument/publishDiagnostics') &&
+            jsonMessage.params?.diagnostics?.length > 0) {
+            return true;
+        }
+        
+        return false;
+    }
+
+
+
+    private monitorDecryptedStreamForJsonRpc(stream: stream.Duplex, direction: 'LOCAL→REMOTE' | 'REMOTE→LOCAL'): void {
+        if (!this.logger) return;
+        
+        this.logger.info(`🔍 Setting up targeted event monitoring for ${direction}`);
+        
+        stream.on('data', (chunk: Buffer) => {
+            if (this.logger) {
+                // Parse JSON-RPC from decrypted data (only logs important events)
+                this.parseJsonRpcFromDecryptedChunk(chunk, direction);
+            }
+        });
+        
+        stream.on('end', () => {
+            if (this.logger) {
+                this.logger.info(`🔚 Stream ended for ${direction}`);
+            }
+        });
+        
+        stream.on('error', (err) => {
+            if (this.logger) {
+                this.logger.error(`❌ Stream error for ${direction}:`, err);
+            }
+        });
+    }
+
+    private parseJsonRpcFromDecryptedChunk(chunk: Buffer, direction: 'LOCAL→REMOTE' | 'REMOTE→LOCAL'): void {
+        if (!this.logger) return;
+        
+        const bufferKey = `DECRYPTED_${direction}`;
+        let buffer = this.dataBuffers.get(bufferKey) || '';
+        
+        // Add new data to buffer
+        const chunkStr = chunk.toString('utf8');
+        buffer += chunkStr;
+        
+        // Skip verbose logging - data is compressed and not useful
+        
+        // Skip WebSocket parsing - data is compressed. 
+        // JSON-RPC monitoring is now handled at the VS Code extension host level.
+        
+        // Update buffer
+        this.dataBuffers.set(bufferKey, buffer);
+        
+        // Trim buffer if it gets too large
+        if (buffer.length > 10000) {
+            this.dataBuffers.set(bufferKey, buffer.substring(buffer.length - 5000));
+        }
+    }
+
+
+
+
+
 }
+

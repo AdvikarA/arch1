@@ -28,6 +28,15 @@ interface TunnelActivityDetails {
 	duration?: number;
 }
 
+interface JsonRpcMessage {
+	jsonrpc: string;
+	id?: number | string;
+	method?: string;
+	params?: any;
+	result?: any;
+	error?: any;
+}
+
 export default class Log {
 	private output: vscode.OutputChannel;
 
@@ -57,6 +66,10 @@ export default class Log {
 
 	private shouldLogTunnelActivity(): boolean {
 		return this.getConfig().get<boolean>('logTunnelActivity', false);
+	}
+
+	private shouldLogJsonRpc(): boolean {
+		return this.getConfig().get<boolean>('logJsonRpc', false);
 	}
 
 	private data2String(data: any): string {
@@ -179,6 +192,124 @@ export default class Log {
 		}
 
 		this.debug(message);
+	}
+
+	public logJsonRpcMessage(direction: NetworkDirection, message: JsonRpcMessage): void {
+		// Temporarily force JSON-RPC logging to be visible
+		if (!this.shouldLogJsonRpc() && !this.isLogLevelEnabled('Debug')) {
+			return;
+		}
+
+		const isRequest = message.method !== undefined;
+		const isResponse = message.result !== undefined || message.error !== undefined;
+		
+		let logMessage = '';
+		let emoji = '';
+		
+		if (isRequest) {
+			emoji = direction === 'LOCAL→REMOTE' ? '📤' : '📥';
+			logMessage = `${emoji} JSON-RPC Request: ${message.method}`;
+			if (message.id !== undefined) {
+				logMessage += ` (id: ${message.id})`;
+			}
+		} else if (isResponse) {
+			emoji = direction === 'LOCAL→REMOTE' ? '📤' : '📥';
+			if (message.error) {
+				emoji = '❌';
+				logMessage = `${emoji} JSON-RPC Error Response (id: ${message.id}): ${message.error.message || 'Unknown error'}`;
+			} else {
+				emoji = '✅';
+				logMessage = `${emoji} JSON-RPC Response (id: ${message.id})`;
+			}
+		} else {
+			emoji = '📨';
+			logMessage = `${emoji} JSON-RPC Notification`;
+		}
+
+		// Log key details for different operation types
+		if (message.method) {
+			// File operations
+			if (message.method.includes('textDocument')) {
+				const uri = message.params?.textDocument?.uri || message.params?.uri;
+				if (uri) {
+					const fileName = uri.split('/').pop() || uri;
+					logMessage += ` - ${fileName}`;
+					
+					// Add operation-specific details
+					if (message.method === 'textDocument/didChange') {
+						const changes = message.params?.contentChanges?.length || 0;
+						logMessage += ` (${changes} change${changes !== 1 ? 's' : ''})`;
+					} else if (message.method === 'textDocument/didSave') {
+						logMessage += ` ✅ SAVED`;
+					}
+				}
+			} 
+			// Workspace operations
+			else if (message.method.startsWith('workspace/')) {
+				if (message.method === 'workspace/didChangeWatchedFiles') {
+					const changes = message.params?.changes || [];
+					logMessage += ` - ${changes.length} file(s) changed`;
+				} else if (message.method === 'workspace/didCreateFiles') {
+					const files = message.params?.files || [];
+					logMessage += ` - ${files.length} file(s) created`;
+				} else if (message.method === 'workspace/didDeleteFiles') {
+					const files = message.params?.files || [];
+					logMessage += ` - ${files.length} file(s) deleted`;
+				} else if (message.method === 'workspace/didRenameFiles') {
+					const files = message.params?.files || [];
+					logMessage += ` - ${files.length} file(s) renamed`;
+				}
+			}
+			// Language server operations  
+			else if (message.method.includes('completion')) {
+				const uri = message.params?.textDocument?.uri;
+				const position = message.params?.position;
+				if (uri && position) {
+					const fileName = uri.split('/').pop() || uri;
+					logMessage += ` - ${fileName}:${position.line + 1}:${position.character + 1}`;
+				}
+			}
+			// Hover/definition operations
+			else if (message.method.includes('hover') || message.method.includes('definition')) {
+				const uri = message.params?.textDocument?.uri;
+				const position = message.params?.position;
+				if (uri && position) {
+					const fileName = uri.split('/').pop() || uri;
+					logMessage += ` - ${fileName}:${position.line + 1}:${position.character + 1}`;
+				}
+			}
+			// Diagnostics
+			else if (message.method === 'textDocument/publishDiagnostics') {
+				const uri = message.params?.uri;
+				const diagnostics = message.params?.diagnostics || [];
+				if (uri) {
+					const fileName = uri.split('/').pop() || uri;
+					const errors = diagnostics.filter((d: any) => d.severity === 1).length;
+					const warnings = diagnostics.filter((d: any) => d.severity === 2).length;
+					logMessage += ` - ${fileName} (${errors} errors, ${warnings} warnings)`;
+				}
+			}
+		}
+
+		const logData = {
+			direction,
+			id: message.id,
+			method: message.method,
+			hasResult: !!message.result,
+			hasError: !!message.error,
+			params: message.params ? Object.keys(message.params) : undefined
+		};
+
+		this.debug(logMessage, logData);
+	}
+
+	public logJsonRpcStats(direction: NetworkDirection, messageCount: number, totalBytes: number): void {
+		if (!this.shouldLogJsonRpc()) {
+			return;
+		}
+
+		const emoji = direction === 'LOCAL→REMOTE' ? '📊' : '📈';
+		this.debug(`${emoji} JSON-RPC Stats: ${direction} - ${messageCount} messages, ${this.formatBytes(totalBytes)}`);
 	}
 
 	public logAuthenticationAttempt(method: string, success: boolean, details?: any): void {

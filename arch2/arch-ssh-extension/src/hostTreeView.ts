@@ -66,6 +66,19 @@ export class HostTreeDataProvider extends Disposable implements vscode.TreeDataP
         }
 
         const treeItem = new vscode.TreeItem(element.hostname);
+        
+        // Handle special case for "No SSH hosts configured"
+        if (element.hostname === 'No SSH hosts configured') {
+            treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
+            treeItem.iconPath = new vscode.ThemeIcon('info');
+            treeItem.description = 'Click to add an SSH host';
+            treeItem.command = {
+                command: 'openremotessh.explorer.add',
+                title: 'Add SSH Host'
+            };
+            return treeItem;
+        }
+        
         treeItem.collapsibleState = element.locations.length ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
         treeItem.iconPath = new vscode.ThemeIcon('vm');
         treeItem.contextValue = 'openremotessh.explorer.host';
@@ -73,15 +86,28 @@ export class HostTreeDataProvider extends Disposable implements vscode.TreeDataP
     }
 
     async getChildren(element?: HostItem): Promise<DataTreeItem[]> {
-        if (!element) {
-            const sshConfigFile = await SSHConfiguration.loadFromFS();
-            const hosts = sshConfigFile.getAllConfiguredHosts();
-            return hosts.map(hostname => new HostItem(hostname, this.locationHistory.getHistory(hostname)));
+        try {
+            if (!element) {
+                const sshConfigFile = await SSHConfiguration.loadFromFS();
+                const hosts = sshConfigFile.getAllConfiguredHosts();
+                console.log('[SSH Tree] Loaded hosts:', hosts);
+                
+                // If no hosts found, return a helpful message item
+                if (hosts.length === 0) {
+                    return [new HostItem('No SSH hosts configured', [])];
+                }
+                
+                return hosts.map(hostname => new HostItem(hostname, this.locationHistory.getHistory(hostname)));
+            }
+            if (element instanceof HostItem) {
+                return element.locations.map(location => new HostLocationItem(location, element.hostname));
+            }
+            return [];
+        } catch (error) {
+            console.error('[SSH Tree] Error loading SSH hosts:', error);
+            // Return empty array if there's an error loading SSH config
+            return [];
         }
-        if (element instanceof HostItem) {
-            return element.locations.map(location => new HostLocationItem(location, element.hostname));
-        }
-        return [];
     }
 
     private refresh() {

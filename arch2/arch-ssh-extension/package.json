@@ -127,30 +127,50 @@
 				"remote.SSH.logFileOperations": {
 					"type": "boolean",
 					"description": "Enable detailed logging of file operations (read, write, watch, etc.) between local VS Code and remote server.",
-					"default": false,
+					"default": true,
 					"scope": "application"
 				},
 				"remote.SSH.logNetworkTraffic": {
 					"type": "boolean",
 					"description": "Enable detailed logging of network requests and responses flowing through the SSH tunnel.",
-					"default": false,
+					"default": true,
 					"scope": "application"
 				},
 				"remote.SSH.logTunnelActivity": {
 					"type": "boolean",
 					"description": "Enable detailed logging of SSH tunnel creation, destruction, and data transfer activities.",
-					"default": false,
+					"default": true,
+					"scope": "application"
+				},
+				"remote.SSH.logJsonRpc": {
+					"type": "boolean",
+					"description": "Enable detailed logging of JSON-RPC messages between local VS Code and remote server (file operations, language server requests, etc.).",
+					"default": true,
+					"scope": "application"
+				},
+				"remote.SSH.showTargets": {
+					"type": "boolean",
+					"description": "Show SSH targets in the Explorer view.",
+					"default": true,
 					"scope": "application"
 				}
 			}
 		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "ssh-targets",
+					"title": "SSH Targets",
+					"icon": "$(vm)"
+				}
+			]
+		},
 		"views": {
-			"remote": [
+			"ssh-targets": [
 				{
 					"id": "sshHosts",
-					"name": "SSH Targets",
-					"group": "targets@1",
-					"remoteName": "open-ssh-remote"
+					"name": "SSH Hosts",
+					"when": "config.remote.SSH.showTargets != false"
 				}
 			]
 		},

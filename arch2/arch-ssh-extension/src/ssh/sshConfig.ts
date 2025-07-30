@@ -6,8 +6,10 @@ import * as vscode from 'vscode';
 import { exists as fileExists, normalizeToSlash, untildify } from '../common/files';
 import { isWindows } from '../common/platform';
 import { glob } from 'glob';
+import Log from '../common/logger';
 
 const systemSSHConfig = isWindows ? path.resolve(process.env.ALLUSERSPROFILE || 'C:\\ProgramData', 'ssh\\ssh_config') : '/etc/ssh/ssh_config';
+const logger = new Log('Remote - SSH Config');
 const defaultSSHConfigPath = path.resolve(os.homedir(), '.ssh/config');
 
 export function getSSHConfigPath() {
@@ -61,7 +63,15 @@ function normalizeSSHConfig(config: SSHConfig) {
 async function parseSSHConfigFromFile(filePath: string, userConfig: boolean) {
     let content = '';
     if (await fileExists(filePath)) {
+        // Enhanced logging: SSH config file read
+        const startTime = Date.now();
         content = (await fs.promises.readFile(filePath, 'utf8')).trim();
+        logger.logFileOperation({
+            operation: 'READ',
+            path: filePath,
+            size: content.length,
+            duration: Date.now() - startTime
+        });
     }
     const config = normalizeSSHConfig(SSHConfig.parse(content));
 

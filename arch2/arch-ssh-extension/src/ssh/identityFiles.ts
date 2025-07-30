@@ -43,7 +43,18 @@ export async function gatherIdentityFiles(identityFiles: string[], sshAgentSock:
 
     const identityFileContentsResult = await Promise.allSettled(identityFiles.map(async keyPath => {
         keyPath = await fileExists(keyPath + '.pub') ? keyPath + '.pub' : keyPath;
-        return fs.promises.readFile(keyPath);
+        
+        // Enhanced logging: SSH identity file read
+        const startTime = Date.now();
+        const keyContent = await fs.promises.readFile(keyPath);
+        logger.logFileOperation({
+            operation: 'READ',
+            path: keyPath,
+            size: keyContent.length,
+            duration: Date.now() - startTime
+        });
+        
+        return keyContent;
     }));
     const fileKeys: SSHKey[] = identityFileContentsResult.map((result, i) => {
         if (result.status === 'rejected') {
