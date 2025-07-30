@@ -107,7 +107,7 @@
 				"remote.SSH.logLevel": {
 					"type": "string",
 					"description": "Set the logging level for SSH extension debugging. Higher levels include all lower levels.",
-					"default": "Info",
+					"default": "Debug",
 					"scope": "application",
 					"enum": [
 						"Trace",
@@ -145,6 +145,48 @@
 				"remote.SSH.logJsonRpc": {
 					"type": "boolean",
 					"description": "Enable detailed logging of JSON-RPC messages between local VS Code and remote server (file operations, language server requests, etc.).",
+					"default": true,
+					"scope": "application"
+				},
+				"remote.SSH.customServer.enabled": {
+					"type": "boolean",
+					"description": "Enable custom ArchIDE server instead of Microsoft's VS Code server. Provides enhanced file system control, terminal management, and JSON-RPC capabilities.",
+					"default": false,
+					"scope": "application"
+				},
+				"remote.SSH.customServer.binaryPath": {
+					"type": "string", 
+					"description": "Path to the custom ArchIDE server binary. Can be local path (will be uploaded) or remote path on target machine.",
+					"default": "",
+					"scope": "application"
+				},
+				"remote.SSH.customServer.deploymentMethod": {
+					"type": "string",
+					"description": "Method to deploy the custom server: 'upload' (upload local binary), 'download' (download from URL), or 'existing' (use existing remote binary).",
+					"default": "upload",
+					"scope": "application",
+					"enum": ["upload", "download", "existing"],
+					"enumDescriptions": [
+						"Upload local binary to remote machine",
+						"Download binary from URL on remote machine", 
+						"Use existing binary on remote machine"
+					]
+				},
+				"remote.SSH.customServer.downloadUrl": {
+					"type": "string",
+					"description": "URL to download custom ArchIDE server binary when using 'download' deployment method.",
+					"default": "",
+					"scope": "application"
+				},
+				"remote.SSH.customServer.enhancedProtocol": {
+					"type": "boolean",
+					"description": "Enable enhanced JSON-RPC protocol with additional file system, terminal, and workspace management capabilities.",
+					"default": true,
+					"scope": "application"
+				},
+				"remote.SSH.customServer.secureWebSocket": {
+					"type": "boolean", 
+					"description": "Enable enhanced WebSocket security with token-based authentication and compression.",
 					"default": true,
 					"scope": "application"
 				},
@@ -193,6 +235,11 @@
 			{
 				"command": "openremotessh.showLog",
 				"title": "Show Log",
+				"category": "Remote-SSH"
+			},
+			{
+				"command": "openremotessh.testCustomServerConfig",
+				"title": "Test Custom ArchIDE Server Configuration",
 				"category": "Remote-SSH"
 			},
 			{

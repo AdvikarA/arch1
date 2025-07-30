@@ -39,6 +39,15 @@ const DEFAULT_DOWNLOAD_URL_TEMPLATE = 'https://github.com/VSCodium/vscodium/rele
 const VSCODE_DOWNLOAD_URL_TEMPLATE = 'https://update.code.visualstudio.com/commit:${commit}/server-${os}-${arch}/${quality}';
 
 export async function installCodeServer(conn: SSHConnection, serverDownloadUrlTemplate: string | undefined, extensionIds: string[], envVariables: string[], platform: string | undefined, useSocketPath: boolean, logger: Log): Promise<ServerInstallResult> {
+    logger.info('🚀 Starting VS Code server installation...');
+    logger.debug('📋 Installation parameters:', {
+        serverDownloadUrlTemplate,
+        extensionIds,
+        envVariables,
+        platform,
+        useSocketPath
+    });
+    
     let shell = 'powershell';
 
     // detect platform and shell for windows
@@ -72,6 +81,8 @@ export async function installCodeServer(conn: SSHConnection, serverDownloadUrlTe
 
     const vscodeServerConfig = await getVSCodeServerConfig();
     
+    logger.debug('📦 VS Code Server Config:', vscodeServerConfig);
+    
     // Determine the appropriate download URL template
     let downloadUrlTemplate = serverDownloadUrlTemplate || vscodeServerConfig.serverDownloadUrlTemplate;
     if (!downloadUrlTemplate) {
@@ -79,6 +90,14 @@ export async function installCodeServer(conn: SSHConnection, serverDownloadUrlTe
         // If release is specified (VSCodium), use the VSCodium download URL
         downloadUrlTemplate = vscodeServerConfig.release ? DEFAULT_DOWNLOAD_URL_TEMPLATE : VSCODE_DOWNLOAD_URL_TEMPLATE;
     }
+    
+    logger.debug('🔗 Final download URL template:', downloadUrlTemplate);
+    logger.debug('🔗 Available URL templates:', {
+        DEFAULT_DOWNLOAD_URL_TEMPLATE,
+        VSCODE_DOWNLOAD_URL_TEMPLATE,
+        serverDownloadUrlTemplate,
+        configTemplate: vscodeServerConfig.serverDownloadUrlTemplate
+    });
     
     const installOptions: ServerInstallOptions = {
         id: scriptId,
@@ -149,17 +168,30 @@ export async function installCodeServer(conn: SSHConnection, serverDownloadUrlTe
     }
 
     if (commandOutput.stderr) {
-        logger.trace('Server install command stderr:', commandOutput.stderr);
+        logger.debug('📤 Server install stderr:', commandOutput.stderr);
     }
-    logger.trace('Server install command stdout:', commandOutput.stdout);
+    logger.debug('📥 Server install stdout:', commandOutput.stdout);
 
     const resultMap = parseServerInstallOutput(commandOutput.stdout, scriptId);
     if (!resultMap) {
+        logger.error('❌ Failed to parse install script output:', {
+            stdout: commandOutput.stdout,
+            stderr: commandOutput.stderr,
+            scriptId
+        });
         throw new ServerInstallError(`Failed parsing install script output`);
     }
 
+    logger.debug('📊 Parsed install result:', resultMap);
+
     const exitCode = parseInt(resultMap.exitCode, 10);
     if (exitCode !== 0) {
+        logger.error('❌ Server installation failed:', {
+            exitCode,
+            resultMap,
+            stdout: commandOutput.stdout,
+            stderr: commandOutput.stderr
+        });
         throw new ServerInstallError(`Couldn't install vscode server on remote server, install script returned non-zero exit status`);
     }
 

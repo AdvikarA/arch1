@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+# Ultra-Minimal ArchIDE Server Launcher
+# Uses standard VS Code server with enhanced features
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NODE_BINARY="${NODE_BINARY:-node}"
+
+echo "🚀 Starting Ultra-Minimal ArchIDE Server..."
+
+# Check if node is available
+if ! command -v "$NODE_BINARY" &> /dev/null; then
+    echo "❌ Node.js not found. Please install Node.js or set NODE_BINARY environment variable."
+    exit 1
+fi
+
+# Enhanced environment variables
+export ARCH_SERVER_ENHANCED_PROTOCOL="${ARCH_SERVER_ENHANCED_PROTOCOL:-true}"
+export ARCH_SERVER_SECURE_WEBSOCKET="${ARCH_SERVER_SECURE_WEBSOCKET:-true}"
+export ARCH_SERVER_FILE_SYSTEM_CONTROL="${ARCH_SERVER_FILE_SYSTEM_CONTROL:-true}"
+export ARCH_SERVER_TERMINAL_CONTROL="${ARCH_SERVER_TERMINAL_CONTROL:-true}"
+
+# Default arguments
+CMD_ARGS=()
+
+# Add all passed arguments
+CMD_ARGS+=("$@")
+
+echo "✅ Enhanced ArchIDE features enabled via environment variables"
+echo "🎯 Command: $NODE_BINARY server-main.js ${CMD_ARGS[*]}"
+
+# Change to script directory and run standard server with enhanced environment
+cd "$SCRIPT_DIR"
+exec "$NODE_BINARY" "server-main.js" "${CMD_ARGS[@]}"

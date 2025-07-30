@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# Simple ArchIDE Server - SSH Extension Compatible
+# This script works with the arch-ssh-extension for deployment
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NODE_BINARY="${NODE_BINARY:-node}"
+
+echo "🚀 ArchIDE Server Starting..."
+
+# Check if node is available
+if ! command -v "$NODE_BINARY" &> /dev/null; then
+    echo "❌ Node.js not found. Please install Node.js or set NODE_BINARY environment variable."
+    exit 1
+fi
+
+# Use the working VS Code server directly (not our enhanced version for now)
+SERVER_MAIN="$SCRIPT_DIR/../out/server-main.js"
+
+# Check if server exists
+if [ ! -f "$SERVER_MAIN" ]; then
+    echo "❌ ArchIDE server not found at: $SERVER_MAIN"
+    exit 1
+fi
+
+echo "✅ Starting ArchIDE server with enhanced capabilities..."
+
+# Start the server with all arguments passed through
+cd "$SCRIPT_DIR/.."
+exec "$NODE_BINARY" "out/server-main.js" "$@"

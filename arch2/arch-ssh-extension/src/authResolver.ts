@@ -15,6 +15,7 @@ import { untildify, exists as fileExists } from './common/files';
 import { findRandomPort } from './common/ports';
 import { disposeAll } from './common/disposable';
 import { installCodeServer, ServerInstallError } from './serverSetup';
+import { shouldUseCustomServer, getCustomServerConfig, installCustomArchServer } from './customServerSetup';
 import { isWindows } from './common/platform';
 import * as os from 'os';
 
@@ -67,6 +68,12 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
     }
 
     resolve(authority: string, context: vscode.RemoteAuthorityResolverContext): Thenable<vscode.ResolverResult> {
+        
+        // BIG OBVIOUS LOG TO VERIFY OUR EXTENSION IS BEING CALLED
+        this.logger.info('🚀🚀🚀 CUSTOM SSH EXTENSION RESOLVE CALLED 🚀🚀🚀');
+        this.logger.info(`🎯 Authority: ${authority}`);
+        this.logger.info(`🎯 Context: ${JSON.stringify(context)}`);
+        console.log('🚀🚀🚀 CUSTOM SSH EXTENSION RESOLVE CALLED 🚀🚀🚀', authority);
         // Debug: Log every resolve attempt
         this.logger.debug(`🔍 RESOLVE METHOD CALLED: authority="${authority}", attempt=${context.resolveAttempt}`);
         
@@ -229,13 +236,79 @@ export class RemoteSSHResolver implements vscode.RemoteAuthorityResolver, vscode
                     extensions: defaultExtensions.length
                 });
 
-                const installResult = await installCodeServer(this.sshConnection, serverDownloadUrlTemplate, defaultExtensions, Object.keys(envVariables), remotePlatformMap[sshDest.hostname], remoteServerListenOnSocket, this.logger);
+                // Check if custom ArchIDE server should be used
+                const useCustomServer = await shouldUseCustomServer();
+                let installResult: any;
+
+                if (useCustomServer) {
+                    // Use custom ArchIDE server
+                    this.logger.info('🎯 Attempting custom ArchIDE server deployment...');
+                    try {
+                        const customServerConfig = await getCustomServerConfig();
+                        
+                        installResult = await installCustomArchServer(
+                            this.sshConnection, 
+                            customServerConfig, 
+                            defaultExtensions, 
+                            Object.keys(envVariables), 
+                            remotePlatformMap[sshDest.hostname], 
+                            remoteServerListenOnSocket, 
+                            this.logger
+                        );
+                        
+                        this.logger.info('✅ Custom ArchIDE server deployed successfully!', {
+                            capabilities: installResult.capabilities,
+                            serverPath: installResult.serverPath
+                        });
+                    } catch (error) {
+                        // If custom server fails, fall back to standard server
+                        this.logger.warning('⚠️ Custom ArchIDE server deployment failed, falling back to standard VS Code server:', error);
+                        
+                        installResult = await installCodeServer(
+                            this.sshConnection, 
+                            serverDownloadUrlTemplate, 
+                            defaultExtensions, 
+                            Object.keys(envVariables), 
+                            remotePlatformMap[sshDest.hostname], 
+                            remoteServerListenOnSocket, 
+                            this.logger
+                        );
+                    }
+                } else {
+                    // Use standard Microsoft VS Code server
+                    this.logger.info('📦 Using standard VS Code server deployment...');
+                    
+                    // Debug logging for VS Code server installation
+                    this.logger.debug('🔍 VS Code Server Debug Info:', {
+                        serverDownloadUrlTemplate,
+                        defaultExtensions,
+                        envVariables: Object.keys(envVariables),
+                        platform: remotePlatformMap[sshDest.hostname],
+                        useSocketPath: remoteServerListenOnSocket
+                    });
+                    
+                    try {
+                        installResult = await installCodeServer(
+                            this.sshConnection, 
+                            serverDownloadUrlTemplate, 
+                            defaultExtensions, 
+                            Object.keys(envVariables), 
+                            remotePlatformMap[sshDest.hostname], 
+                            remoteServerListenOnSocket, 
+                            this.logger
+                        );
+                    } catch (error) {
+                        this.logger.error('❌ Standard VS Code server installation failed:', error);
+                        throw error; // Re-throw to maintain existing error handling
+                    }
+                }
 
                 // Enhanced logging: Server installation complete
                 this.logger.logServerInstallation('COMPLETE', 100, {
                     listeningOn: installResult.listeningOn,
                     platform: installResult.platform,
-                    arch: installResult.arch
+                    arch: installResult.arch,
+                    serverType: useCustomServer ? 'ArchIDE Custom' : 'VS Code Standard'
                 });
 
                 for (const key of Object.keys(envVariables)) {

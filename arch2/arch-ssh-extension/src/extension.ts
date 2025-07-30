@@ -28,6 +28,38 @@ export async function activate(context: vscode.ExtensionContext) {
         logger.info(`🎯 Enhanced logging enabled: ${enabledFeatures.join(', ')}`);
     }
 
+    // Add test command to check custom server configuration
+    context.subscriptions.push(vscode.commands.registerCommand('openremotessh.testCustomServerConfig', async () => {
+        logger.info('🔧 Testing Custom ArchIDE Server Configuration...');
+        logger.show(); // Force show the output panel
+        
+        try {
+            const { shouldUseCustomServer, getCustomServerConfig } = await import('./customServerSetup');
+            
+            const useCustom = await shouldUseCustomServer();
+            const config = await getCustomServerConfig();
+            
+            logger.info(`📋 Custom Server Status:
+            • Enabled: ${config.enabled}
+            • Will Use Custom: ${useCustom}
+            • Binary Path: ${config.binaryPath || 'Not set'}
+            • Deployment Method: ${config.deploymentMethod}
+            • Download URL: ${config.downloadUrl || 'Not set'}
+            • Enhanced Protocol: ${config.enhancedProtocol}
+            • Secure WebSocket: ${config.secureWebSocket}`);
+            
+            if (useCustom) {
+                vscode.window.showInformationMessage('✅ Custom ArchIDE server is configured and will be used!');
+            } else {
+                vscode.window.showInformationMessage('📦 Standard VS Code server will be used. Configure custom server in settings if desired.');
+            }
+            
+        } catch (error) {
+            logger.error('❌ Error checking custom server configuration:', error);
+            vscode.window.showErrorMessage('Error checking custom server configuration');
+        }
+    }));
+
     // Add test command to manually trigger enhanced logging
     context.subscriptions.push(vscode.commands.registerCommand('openremotessh.testEnhancedLogging', () => {
         logger.info('🧪 Testing Enhanced Logging Features...');
@@ -211,6 +243,7 @@ export async function activate(context: vscode.ExtensionContext) {
             'openremotessh.openEmptyWindowInCurrentWindow', 
             'openremotessh.openConfigFile',
             'openremotessh.showLog',
+            'openremotessh.testCustomServerConfig',
             'openremotessh.testEnhancedLogging',
             'openremotessh.directConnectionTest'
         ]

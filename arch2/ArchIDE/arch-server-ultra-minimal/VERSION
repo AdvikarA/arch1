@@ -1,0 +1,6 @@
+ArchIDE Server Ultra-Minimal Package
+Version: 1.0.0
+Built: Tue Jul 29 20:19:20 PDT 2025
+Platform: cross-platform
+Size: ultra-minimal (~40KB vs ~200MB full package)
+Base: Standard VS Code server with enhanced environment

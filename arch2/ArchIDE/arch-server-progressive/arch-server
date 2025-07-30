@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+# Enhanced ArchIDE Server Launcher
+# This script deploys and runs the ArchIDE server with enhanced capabilities
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NODE_BINARY="${NODE_BINARY:-node}"
+
+echo "🚀 Enhanced ArchIDE Server Deployment..."
+
+# Check if node is available
+if ! command -v "$NODE_BINARY" &> /dev/null; then
+    echo "❌ Node.js not found. Please install Node.js or set NODE_BINARY environment variable."
+    exit 1
+fi
+
+# Default enhanced features
+ENHANCED_PROTOCOL="${ARCH_SERVER_ENHANCED_PROTOCOL:-true}"
+SECURE_WEBSOCKET="${ARCH_SERVER_SECURE_WEBSOCKET:-true}"
+FILE_SYSTEM_CONTROL="${ARCH_SERVER_FILE_SYSTEM_CONTROL:-true}"
+TERMINAL_CONTROL="${ARCH_SERVER_TERMINAL_CONTROL:-true}"
+
+# Build command with enhanced features
+CMD_ARGS=("--start-server")
+
+if [ "$ENHANCED_PROTOCOL" = "true" ]; then
+    CMD_ARGS+=(--enhanced-protocol)
+fi
+
+if [ "$SECURE_WEBSOCKET" = "true" ]; then
+    CMD_ARGS+=(--secure-websocket)
+fi
+
+if [ "$FILE_SYSTEM_CONTROL" = "true" ]; then
+    CMD_ARGS+=(--file-system-control)
+fi
+
+if [ "$TERMINAL_CONTROL" = "true" ]; then
+    CMD_ARGS+=(--terminal-control)
+fi
+
+# Accept license terms automatically
+CMD_ARGS+=(--accept-server-license-terms)
+
+# Add any additional arguments passed to this script
+CMD_ARGS+=("$@")
+
+echo "📋 Enhanced Features: Protocol=$ENHANCED_PROTOCOL, WebSocket=$SECURE_WEBSOCKET, FileSystem=$FILE_SYSTEM_CONTROL, Terminal=$TERMINAL_CONTROL"
+
+# Launch the server using the compiled arch-server-main.js directly
+exec "$NODE_BINARY" "$SCRIPT_DIR/arch-server-main.js" "${CMD_ARGS[@]}"

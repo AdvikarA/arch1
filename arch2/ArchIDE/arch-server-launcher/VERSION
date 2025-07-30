@@ -1,0 +1,5 @@
+ArchIDE Enhanced Server Launcher
+Version: 1.0.0
+Build Date: 2025-07-30 02:10:15 UTC
+Commit: 2c02ce29b13765f0bd9809971e92690cc0a37515
+Enhanced Features: JSON-RPC, WebSocket, FileSystem, Terminal

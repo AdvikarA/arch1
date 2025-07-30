@@ -22,7 +22,17 @@ const config = {
 		"utf-8-validate": "utf-8-validate",
 	},
 	resolve: {
-		extensions: ['.ts', '.js']
+		extensions: ['.ts', '.js'],
+		fallback: {
+			"crypto": false,
+			"stream": false,
+			"util": false,
+			"buffer": false,
+			"process": false,
+			"path": false,
+			"fs": false,
+			"os": false
+		}
 	},
 	module: {
 		rules: [{
@@ -39,6 +49,11 @@ const config = {
 		}),
 		new webpack.IgnorePlugin({
 			resourceRegExp: /cpu-features/,
+		}),
+		new webpack.DefinePlugin({
+			'global.navigator': 'undefined',
+			'globalThis.navigator': 'undefined',
+			'navigator': 'undefined'
 		})
 	]
 }
